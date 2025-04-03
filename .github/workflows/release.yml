@@ -1,0 +1,33 @@
+name: Release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly-2025-02-04-x86_64-unknown-linux-gnu
+          profile: minimal
+          override: true
+
+      - name: Validate lockfile is up to date
+        run: cargo check --all-targets --locked --verbose
+
+      - name: Verify package can be published
+        run: cargo publish -p fractory --dry-run --verbose
+
+      - name: Publish to crates.io
+        run: cargo publish -p fractory --no-verify --token ${{ secrets.CRATES_IO_TOKEN }}

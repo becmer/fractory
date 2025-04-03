@@ -1,0 +1,20 @@
+[workspace]
+members = ["crates/fractory"]
+resolver = "3"
+
+[workspace.dependencies]
+
+
+[workspace.package]
+version = "0.0.0"
+authors = ["Kamil Becmer"]
+edition = "2024"
+rust-version = "1.86.0" # TODO: Reevaluate and lift MSRV after a compatibility review session
+description = "Track intent and flow, preserve context, and reconstruct sessions — for mosaic thinkers."
+documentation = "https://docs.fractory.dev"
+readme = "README.md"
+homepage = "https://fractory.dev"
+repository = "https://github.com/becmer/fractory"
+license = "MIT OR Apache-2.0"
+keywords = ["workflow", "productivity", "intent", "session-tracking", "nonlinear"]
+categories = ["development-tools", "command-line-utilities", "text-processing", "visualization"]

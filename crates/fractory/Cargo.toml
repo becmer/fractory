@@ -13,4 +13,20 @@ license.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[lib]
+
+[[bin]]
+name = "fractory"
+path = "src/cli.rs"
+required-features = ["cli"]
+
+[features]
+default = ["cli"]
+cli = ["dep:clap", "dep:fractory-daemon", "tokio/macros", "tokio/rt-multi-thread"]
+
 [dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, optional = true, features = ["derive"] }
+fractory-daemon = { workspace = true, optional = true, features = ["service"] }
+gix = { workspace = true }
+tokio = { workspace = true, features = ["fs", "net"] }

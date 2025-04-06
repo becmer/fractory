@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Windows service integration
+- Daemon messaging protocol
+- Social media preview image
+
 ## [0.0.0] - 2025-04-03
 
 ### Added

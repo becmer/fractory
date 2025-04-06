@@ -1,0 +1,64 @@
+[package]
+name = "fractory-daemon"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+description.workspace = true
+documentation.workspace = true
+readme.workspace = true
+homepage.workspace = true
+repository.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[lib]
+
+[[bin]]
+name = "dummy-daemon"
+path = "tests/bin/dummy_daemon.rs"
+required-features = ["env_logger", "rand"]
+
+[features]
+default = []
+env_logger = ["dep:env_logger"]
+rand = ["dep:rand"]
+service = ["dep:anyhow", "dep:flume", "dep:windows-service"]
+
+[dependencies]
+anyhow = { workspace = true, optional = true }
+bincode = { workspace = true, features = ["derive"] }
+env_logger = { workspace = true, optional = true }
+futures = { workspace = true }
+log = { workspace = true }
+rand = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["net"] }
+tokio-stream = { workspace = true }
+tokio-util = { workspace = true, features = ["codec"] }
+
+[target.'cfg(windows)'.dependencies]
+flume = { workspace = true, optional = true }
+mio = { workspace = true }
+ringbuf = { workspace = true }
+widestring = { workspace = true }
+windows-service = { workspace = true, optional = true }
+
+[target.'cfg(windows)'.dependencies.windows]
+workspace = true
+features = [
+    "Win32_Security",
+    "Win32_Storage_FileSystem",
+    "Win32_System_Pipes",
+    "Win32_System_Threading",
+]
+
+[target.'cfg(unix)'.dependencies]
+nix = { workspace = true, features = ["fs"] }
+users = { workspace = true }
+
+[dev-dependencies]
+assert_cmd = { workspace = true }
+pretty_assertions = { workspace = true }
+rand = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "full"] }

@@ -1,29 +1,28 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025 Kamil Becmer
 
-use std::{io::Write, process::ExitCode, thread, time::Duration};
+use std::{process::ExitCode, thread, time::Duration};
 
-use env_logger::{Builder, Env};
-use fractory_daemon::{DaemonLock, DaemonScope};
+use fractory_daemon::{DaemonCxPayload, DaemonLock, DaemonScope};
+use tracing::error;
+use tracing_subscriber::fmt::format;
 
 fn main() -> ExitCode {
-    let pid = std::process::id();
-    Builder::from_env(Env::default().default_filter_or("info"))
-        .format(move |f, record| {
-            let ts = f.timestamp_millis(); // includes milliseconds
-            writeln!(f, "[{} {}] {}", ts, pid, record.args())
-        })
+    tracing_subscriber::fmt()
+        .event_format(format().compact())
         .init();
 
     let name = std::env::args_os().nth(1).expect("missing lock name");
-    match DaemonLock::try_acquire_lock(name, DaemonScope::User) {
+    let cx =
+        DaemonCxPayload::new(DaemonScope::User, name).expect("failed to create daemon context");
+    match DaemonLock::try_acquire_lock(cx) {
         Ok(lock) => {
             thread::sleep(Duration::from_secs(30));
             let _ = lock;
             ExitCode::SUCCESS
         }
-        Err(e) => {
-            log::error!("{e}");
+        Err(error) => {
+            error!(%error, "failed to acquire lock");
             ExitCode::FAILURE
         }
     }

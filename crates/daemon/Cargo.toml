@@ -18,24 +18,25 @@ categories.workspace = true
 [[bin]]
 name = "dummy-daemon"
 path = "tests/bin/dummy_daemon.rs"
-required-features = ["env_logger", "rand"]
+required-features = ["tracing-subscriber", "integration-tests"]
 
 [features]
 default = []
-env_logger = ["dep:env_logger"]
-rand = ["dep:rand"]
+integration-tests = ["dep:rand", "dep:parking_lot"]
 service = ["dep:anyhow", "dep:flume", "dep:windows-service"]
+tracing-subscriber = ["dep:tracing-subscriber"]
 
 [dependencies]
 anyhow = { workspace = true, optional = true }
 bincode = { workspace = true, features = ["derive"] }
-env_logger = { workspace = true, optional = true }
 futures = { workspace = true }
-log = { workspace = true }
+parking_lot = { workspace = true, optional = true }
 rand = { workspace = true, optional = true }
 tokio = { workspace = true, features = ["net"] }
 tokio-stream = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, optional = true, features = ["env-filter"] }
 
 [target.'cfg(windows)'.dependencies]
 flume = { workspace = true, optional = true }
@@ -54,11 +55,20 @@ features = [
 ]
 
 [target.'cfg(unix)'.dependencies]
-nix = { workspace = true, features = ["fs"] }
-users = { workspace = true }
+askama = { workspace = true }
+nix = { workspace = true, features = ["fs", "user"] }
+systemd = { workspace = true }
 
 [dev-dependencies]
 assert_cmd = { workspace = true }
+fractory-daemon = { workspace = true, features = ["integration-tests"] }
+memchr = { workspace = true }
+ntest = { workspace = true }
+parking_lot = { workspace = true }
 pretty_assertions = { workspace = true }
 rand = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "time", "full"] }
+tracing-subscriber = { workspace = true }
+
+[target.'cfg(unix)'.dev-dependencies]
+configparser = { workspace = true }

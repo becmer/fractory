@@ -8,6 +8,7 @@ use tokio::{
     task::JoinHandle,
     time::{Duration, sleep},
 };
+use tracing::{error, info};
 pub use windows_service::define_windows_service;
 use windows_service::{
     Result as ServiceResult,
@@ -20,14 +21,14 @@ use windows_service::{
     service_dispatcher,
 };
 
+use crate::{DAEMON_NAME, DaemonCx};
+
 type Result<T> = std::result::Result<T, DaemonServiceError>;
 type SignalTx = flume::Sender<()>;
 type SignalRx = flume::Receiver<()>;
 
-const SERVICE_NAME: &str = "fractory";
-
 pub fn dispatch(service_main: extern "system" fn(u32, *mut *mut u16)) -> Result<()> {
-    service_dispatcher::start(SERVICE_NAME, service_main)?;
+    service_dispatcher::start(DAEMON_NAME, service_main)?;
     Ok(())
 }
 
@@ -44,8 +45,8 @@ pub struct DaemonService {
 
 impl DaemonService {
     pub fn start(args: Vec<OsString>) {
-        if let Err(e) = Self::try_start(args) {
-            log::error!("{SERVICE_NAME} failed: {e}");
+        if let Err(error) = Self::try_start(args) {
+            error!(%error, "{DAEMON_NAME} failed");
         }
     }
 
@@ -58,11 +59,11 @@ impl DaemonService {
         // TODO: In reality, we would like to cede this logic into a common implementation.
         let running = tokio::select! {
             _ = shutdown_rx.recv_async() => {
-                log::info!("Service shutdown requested.");
+                info!("service shutdown requested");
                 false
             }
             _ = sleep(Duration::from_secs(1)) => {
-                log::info!("Daemon initialized.");
+                info!("daemon initialized");
                 let _ = initialized_tx.send(());
                 true
             }
@@ -70,10 +71,10 @@ impl DaemonService {
         if running {
             tokio::select! {
                 _ = shutdown_rx.recv_async() => {
-                    log::info!("Service shutdown requested.");
+                    info!("service shutdown requested");
                 }
                 _ = sleep(Duration::from_secs(5)) => {
-                    log::info!("Daemon finished work.");
+                    info!("daemon finished work");
                 }
             }
         }
@@ -103,10 +104,10 @@ impl DaemonService {
     }
 
     fn register(shutdown_tx: flume::Sender<()>) -> ServiceResult<Self> {
-        let handle = service_control_handler::register(SERVICE_NAME, move |event| match event {
+        let handle = service_control_handler::register(DAEMON_NAME, move |event| match event {
             ServiceControl::Interrogate => ServiceControlHandlerResult::NoError,
             ServiceControl::Stop | ServiceControl::Preshutdown | ServiceControl::Shutdown => {
-                log::info!("Received stop signal from SCM");
+                info!("stop signal from SCM received");
                 let _ = shutdown_tx.send(());
                 ServiceControlHandlerResult::NoError
             }
@@ -126,9 +127,9 @@ impl DaemonService {
         }))
     }
 
-    fn set_status(&self, current_state: ServiceState) -> ServiceResult<()> {
-        log::info!("Setting service status to {current_state:?}");
-        let controls_accepted = match current_state {
+    fn set_status(&self, target_state: ServiceState) -> ServiceResult<()> {
+        info!(?target_state, "setting new service status");
+        let controls_accepted = match target_state {
             ServiceState::Running | ServiceState::StartPending => {
                 ServiceControlAccept::STOP
                     | ServiceControlAccept::PRESHUTDOWN
@@ -137,13 +138,13 @@ impl DaemonService {
             ServiceState::Stopped => ServiceControlAccept::empty(),
             _ => unimplemented!(),
         };
-        let wait_hint = match current_state {
+        let wait_hint = match target_state {
             ServiceState::StartPending => Duration::from_secs(10),
             _ => Duration::from_secs(0),
         };
         self.handle.set_service_status(ServiceStatus {
             service_type: ServiceType::OWN_PROCESS,
-            current_state,
+            current_state: target_state,
             controls_accepted,
             exit_code: ServiceExitCode::Win32(0),
             checkpoint: 0,

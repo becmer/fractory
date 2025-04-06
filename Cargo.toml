@@ -3,6 +3,7 @@ members = [
     "crates/daemon",
     "crates/fractory",
 ]
+exclude = ["scripts"]
 resolver = "3"
 
 [workspace.dependencies]
@@ -10,23 +11,28 @@ fractory = { path = "crates/fractory", default-features = false }
 fractory-daemon = { path = "crates/daemon" }
 
 anyhow = { version = "1", default-features = false }
+askama = { version = "0.13", features = ["derive"] }
 assert_cmd = { version = "2", default-features = false }
 bincode = { version = "2" }
 clap = { version = "4", default-features = false, features = ["std"] }
-env_logger = { version = "0.11" }
+configparser = { version = "3" }
 flume = { version = "0.11" }
 futures = { version = "0.3" }
 gix = { version = "0.71", default-features = false }
-log = { version = "0.4" }
+memchr = { version = "2" }
 mio = { version = "1" }
 nix = { version = "0.29" }
+ntest = { version = "0.9" }
+parking_lot = { version = "0.12" }
 pretty_assertions = { version = "1", features = ["unstable"] }
 rand = { version = "0.9", default-features = false, features = ["std", "thread_rng"] }
 ringbuf = { version = "0.4" }
+systemd = { version = "0.10" }
 tokio = { version = "1", default-features = false }
 tokio-stream = { version = "0.1" }
 tokio-util = { version = "0.7" }
-users = { version = "0.11" }
+tracing = { version = "0.1" }
+tracing-subscriber = { version = "0.3" }
 widestring = { version = "1", default-features = false, features = ["std"] }
 windows = { version = "0.61", default-features = false, features = ["std"] }
 windows-service = { version = "0.8" }

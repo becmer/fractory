@@ -6,11 +6,17 @@
 #![feature(ptr_as_ref_unchecked)]
 #![feature(iterator_try_collect)]
 #![feature(new_zeroed_alloc)]
+#![feature(os_str_display)]
+#![feature(impl_trait_in_assoc_type)]
+#![feature(unboxed_closures)]
+#![feature(raw_os_error_ty)]
+#![cfg_attr(test, feature(once_cell_try))]
+#![cfg_attr(test, feature(fn_traits))]
 
 mod backend;
 mod codec;
+mod cx;
 mod error;
-mod id;
 pub mod msg;
 #[cfg(test)]
 mod test_utils;
@@ -28,22 +34,12 @@ pub(crate) use os_str_concat;
 #[cfg(feature = "service")]
 pub use self::backend::service;
 pub use self::{
-    backend::{DaemonClient, DaemonListener, DaemonLock, DaemonServer},
+    backend::{
+        DaemonClient, DaemonConnector, DaemonCxAttachment, DaemonListener, DaemonLock,
+        DaemonServer, NativeDaemonConnector, NativeDaemonListener, NativeDaemonServer,
+    },
+    cx::{DaemonCx, DaemonCxPayload, DaemonId, DaemonScope},
     error::DaemonError,
-    id::{DaemonId, DaemonScope},
 };
 
-const DEFAULT_DAEMON_NAME: &str = "fractory-daemon";
-
-#[cfg(any(test, feature = "rand"))]
-pub fn random_name() -> std::ffi::OsString {
-    use rand::{Rng, distr::Alphanumeric};
-
-    let suffix = rand::rng()
-        .sample_iter(&Alphanumeric)
-        .take(16)
-        .map(char::from)
-        .collect::<String>();
-
-    os_str_concat!(DEFAULT_DAEMON_NAME, "-", suffix)
-}
+pub(crate) const DAEMON_NAME: &str = "fractory";

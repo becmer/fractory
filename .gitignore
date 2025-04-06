@@ -1,2 +1,5 @@
 .idea/
 target/
+mutants.out/
+mutants.out.old/
+/dump.md

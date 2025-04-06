@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: MIT OR Apache-2.0
 // Copyright (c) 2025 Kamil Becmer
+// TODO: Implement `FactoryCx` after daemon functionality hardened.
+#![allow(dead_code)]
 
 use std::path::{Path, PathBuf};
 

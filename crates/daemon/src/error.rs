@@ -3,7 +3,7 @@
 
 use std::{ffi::OsString, fmt, io};
 
-use crate::DaemonId;
+use crate::{DaemonCx, DaemonId};
 #[cfg(all(windows, feature = "service"))]
 use crate::service::DaemonServiceError;
 
@@ -11,16 +11,19 @@ use crate::service::DaemonServiceError;
 pub enum DaemonError {
     InvalidName(OsString),
     AlreadyRunning(DaemonId),
-    SystemFailure(io::Error),
+    RundirUnavailable(DaemonId, io::Error),
+    LockFailed(DaemonId, Box<dyn std::error::Error>),
+    ConnectFailed(DaemonCx, io::Error),
+    // SystemFailure(io::Error),
     #[cfg(all(windows, feature = "service"))]
     ServiceFailure(DaemonServiceError),
 }
 
-impl From<io::Error> for DaemonError {
-    fn from(e: io::Error) -> Self {
-        Self::SystemFailure(e.into())
-    }
-}
+// impl From<io::Error> for DaemonError {
+//     fn from(e: io::Error) -> Self {
+//         Self::SystemFailure(e.into())
+//     }
+// }
 
 #[cfg(all(windows, feature = "service"))]
 impl From<DaemonServiceError> for DaemonError {
@@ -33,12 +36,21 @@ impl fmt::Display for DaemonError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match *self {
             Self::InvalidName(ref name) => {
-                write!(f, "invalid daemon name: {}", name.to_string_lossy())
+                write!(f, "invalid name: {}", name.display())
             }
             Self::AlreadyRunning(ref id) => {
-                write!(f, "daemon already running: {id}")
+                write!(f, "already running: {id}")
             }
-            Self::SystemFailure(ref err) => fmt::Display::fmt(err, f),
+            Self::RundirUnavailable(ref id, ref err) => {
+                write!(f, "rundir unavailable: {id}, {err}")
+            }
+            Self::LockFailed(ref id, ref err) => {
+                write!(f, "lock failed: {id}: {err}")
+            }
+            Self::ConnectFailed(ref cx, ref err) => {
+                write!(f, "connect failed: {}: {err}", cx.id)
+            }
+            // Self::SystemFailure(ref err) => fmt::Display::fmt(err, f),
             #[cfg(all(windows, feature = "service"))]
             Self::ServiceFailure(ref err) => fmt::Display::fmt(err, f),
         }

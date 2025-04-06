@@ -9,27 +9,27 @@
 use std::{
     cell::{OnceCell, RefCell},
     collections::BTreeSet,
-    ffi::OsStr,
     io,
     io::Read,
-    os::windows::process::ExitStatusExt,
     process::{Child, ExitStatus, Stdio},
     thread,
     time::Duration,
 };
 
-use fractory_daemon::random_name;
+use fractory_daemon::DaemonCx;
+use ntest::timeout;
+use tracing::warn;
 
 const NUMBER_OF_DAEMONS: usize = 10;
 
 #[test]
+#[timeout(500)]
 fn single_daemon_only() {
-    let name = random_name();
-
+    let cx = DaemonCx::random_in_user_scope();
     let mut running = Vec::from(
         thread::scope(|scope| {
             [(); NUMBER_OF_DAEMONS]
-                .map(|_| scope.spawn_daemon(&name))
+                .map(|_| scope.spawn_daemon(cx))
                 .try_map(|handle| handle.join().expect("thread panicked"))
         })
         .expect("daemon process failed to start"),
@@ -55,18 +55,15 @@ fn single_daemon_only() {
     running.kill();
     completed.push(running);
 
-    let (stderr, failed) = completed
-        .into_iter()
-        .map(DaemonProcess::finish)
-        .fold(
-            (BTreeSet::<String>::new(), 0_usize),
-            |(mut lines, failed), (status, stderr)| {
-                for line in stderr.lines() {
-                    lines.insert(line.to_owned());
-                }
-                (lines, failed + (!status.success()) as usize)
-            },
-        );
+    let (stderr, failed) = completed.into_iter().map(DaemonProcess::finish).fold(
+        (BTreeSet::<String>::new(), 0_usize),
+        |(mut lines, failed), (status, stderr)| {
+            for line in stderr.lines() {
+                lines.insert(line.to_owned());
+            }
+            (lines, failed + (!status.success()) as usize)
+        },
+    );
 
     for line in stderr {
         println!("{line}");
@@ -76,22 +73,17 @@ fn single_daemon_only() {
 }
 
 trait SpawnDaemon<'scope> {
-    fn spawn_daemon<S: AsRef<OsStr>>(
+    fn spawn_daemon(
         &'scope self,
-        name: &'scope S,
-    ) -> thread::ScopedJoinHandle<'scope, io::Result<DaemonProcess>>
-    where
-        S: Send + Sync + ?Sized + 'scope;
+        cx: DaemonCx,
+    ) -> thread::ScopedJoinHandle<'scope, io::Result<DaemonProcess>>;
 }
 impl<'scope, 'env: 'scope> SpawnDaemon<'scope> for thread::Scope<'scope, 'env> {
-    fn spawn_daemon<S: AsRef<OsStr>>(
+    fn spawn_daemon(
         &'scope self,
-        name: &'scope S,
-    ) -> thread::ScopedJoinHandle<'scope, io::Result<DaemonProcess>>
-    where
-        S: Send + Sync + ?Sized + 'scope,
-    {
-        self.spawn(move || DaemonProcess::spawn(name))
+        cx: DaemonCx,
+    ) -> thread::ScopedJoinHandle<'scope, io::Result<DaemonProcess>> {
+        self.spawn(move || DaemonProcess::spawn(cx))
     }
 }
 
@@ -101,14 +93,14 @@ struct DaemonProcess {
 }
 
 impl DaemonProcess {
-    fn spawn<S: AsRef<OsStr>>(name: S) -> io::Result<Self> {
+    fn spawn(cx: DaemonCx) -> io::Result<Self> {
         let path = assert_cmd::cargo::cargo_bin("dummy-daemon");
         if !path.is_file() {
             panic!("`{}` not found", path.display());
         }
         let mut cmd = std::process::Command::new(path);
-        cmd.arg(name);
-        cmd.env("RUST_LOG", "debug");
+        cmd.arg(&cx.id.name);
+        cmd.env("RUST_LOG", "trace");
         cmd.stdin(Stdio::null());
         cmd.stdout(Stdio::null());
         cmd.stderr(Stdio::piped());
@@ -127,12 +119,12 @@ impl DaemonProcess {
             let _ = self.status.try_insert(ExitStatus::default());
         }
         if self.child.borrow_mut().kill().is_err() {
-            log::warn!("daemon failed to die");
+            warn!("daemon failed to die");
         }
     }
 
     fn finish(self) -> (ExitStatus, String) {
-        let status = self.status.into_inner().unwrap_or(ExitStatus::from_raw(1));
+        let status = self.status.into_inner().unwrap_or(failure());
         let mut output = Vec::<u8>::new();
         if let Some(mut stderr) = self.child.into_inner().stderr {
             let _ = stderr.read_to_end(&mut output);
@@ -155,4 +147,13 @@ impl DaemonProcess {
             Err(Some(err)) => panic!("{err}"),
         }
     }
+}
+
+#[cfg(windows)]
+fn failure() -> ExitStatus {
+    std::os::windows::process::ExitStatusExt::from_raw(1)
+}
+#[cfg(unix)]
+fn failure() -> ExitStatus {
+    std::os::unix::process::ExitStatusExt::from_raw(1)
 }

@@ -1,0 +1,21 @@
+[Unit]
+Description=Fractory Daemon
+
+[Service]
+ExecStart={{ exec_start }}{% if is_system %} --system{% endif %}
+Type=notify
+NotifyAccess=main
+{%- if run_as.is_some() %}
+User={{ run_as.unwrap() }}
+{%- endif %}
+Restart=on-failure
+TimeoutStopSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+{%- if is_system %}
+WantedBy=multi-user.target
+{%- else %}
+WantedBy=default.target
+{%- endif %}
